@@ -8,14 +8,22 @@
 
 ### Fallback
 
-**考点**： fallback函数的使用
+**考点**： fallback函数的运行机制
 
 合约fallback函数在接收转账或用户调用此合约不存在的函数时触发。
+
+**思路**：
+
+合约构造函数 Fallback() 中初始owner贡献度为 1000 ether。
+我们可以通过转钱提升贡献度，当贡献度超过 1000 ether 即可成为合约 owner。
+但在 contribute() 中限制了每次只能转小于 0.001 ether 的钱。我们需要转账至少1000/0.001=1000000次，很明显，此路不通。
+
+观察 fallback 函数；可以发现当触发fallback函数时，只要转账金额大于0，并且贡献大于0，即可成为 owner。而给此合约转账即可触发fallback函数。
 
 **解题步骤**：
 
 1. 调用contruibute函数使contributions[msg.sender] > 0
-2. 用我们自定义的合约转账即可触发Fallback合约的fallback函数，即可拿到owner权限； 
+2. 用我们自定义的合约转账即可触发Fallback合约的fallback函数，当转账金额大于0即可满足msg.value > 0， 从而拿到owner权限； 
 3. withdraw提取所有资产
 
 **代码**：
@@ -27,11 +35,22 @@ contract.withdraw()
 **如何避免**： 谨慎处理fallback函数逻辑
 
 ### Fallout
-**考点**： 查看abi
+**考点**： 构造函数名称需要与contract名称一致
+
+构造函数名称必须与contract同名；否则会作为普通函数处理。
 
 通过查看abi可以看出构造函数拼写错误，Fallout写成了Fal1out，导致黑客直接调用Fal1out即可获取owner权限
 
-**如何避免**： 检查abi
+**相关漏洞**： 当合约命名修改时，忘记修改构造函数名称同样会导致相同的漏洞，如下例中合约名称从DynamicPyramid修改为Rubixi，但构造函数名称依然是DynamicPyramid，导致黑客调用函数DynamicPyramid后获取owner权限，再调用collectAllFees获得全部资产
+```
+contract Rubixi {
+  address private owner;
+  function DynamicPyramid() { owner = msg.sender; }
+  function collectAllFees() { owner.transfer(this.balance) }
+  ...
+```
+
+**如何避免**： 检查abi，版本0.4.22后直接使用constructor关键字声明构造函数。
 
 ### Coin Flip
 **考点**： 合约中随机数的使用
@@ -131,6 +150,8 @@ contract hacker {
     }
 }
 ```
+当用户给hacker转账时，触发hacker的fallback函数，fallback函数使的用户的token转移到attackerAddress。
+
 **如何避免**
 
 尽量不要使用tx.origin进行转账相关操作，除非知道自己在做什么
